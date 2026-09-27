@@ -34,10 +34,7 @@ export async function createSession(
   const token = generateSessionToken();
   const now = Date.now();
 
-  const expiresAt = new Date(
-    now + SLIDING_TTL_MS,
-  );
-
+  const expiresAt = new Date(now + SLIDING_TTL_MS);
   const absoluteExpiresAt = new Date(
     now + ABSOLUTE_TTL_MS,
   );
@@ -106,13 +103,11 @@ export async function getCurrentSession() {
   }
 
   const now = Date.now();
-  const absoluteLimit =
-    current.absoluteExpiresAt.getTime();
 
   const refreshedExpiry = new Date(
     Math.min(
       now + SLIDING_TTL_MS,
-      absoluteLimit,
+      current.absoluteExpiresAt.getTime(),
     ),
   );
 
@@ -126,6 +121,7 @@ export async function getCurrentSession() {
 
   return {
     sessionId: current.sessionId,
+    rawToken,
     user: {
       id: current.userId,
       email: current.email,
