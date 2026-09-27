@@ -17,13 +17,23 @@ export const sessions = pgTable("sessions", {
     })
     .notNull(),
 
-  tokenHash: varchar("token_hash", { length: 64 })
+  tokenHash: varchar("token_hash", {
+    length: 64,
+  })
     .notNull()
     .unique(),
 
   expiresAt: timestamp("expires_at", {
     withTimezone: true,
   }).notNull(),
+
+  absoluteExpiresAt: timestamp("absolute_expires_at", {
+    withTimezone: true,
+  }).notNull(),
+
+  lastAccessedAt: timestamp("last_accessed_at", {
+    withTimezone: true,
+  }),
 
   revokedAt: timestamp("revoked_at", {
     withTimezone: true,
@@ -37,5 +47,7 @@ export const sessions = pgTable("sessions", {
 
   createdAt: timestamp("created_at", {
     withTimezone: true,
-  }).defaultNow().notNull(),
+  })
+    .defaultNow()
+    .notNull(),
 });
