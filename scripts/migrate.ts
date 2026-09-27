@@ -1,3 +1,15 @@
-console.log("[migrate] Foundation phase.");
-console.log("[migrate] Real Drizzle migrations start in Phase 2.");
-process.exit(0);
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { db } from "../src/lib/db";
+
+async function main() {
+  await migrate(db, {
+    migrationsFolder: "./src/db/migrations",
+  });
+
+  console.log("Migrations completed.");
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
