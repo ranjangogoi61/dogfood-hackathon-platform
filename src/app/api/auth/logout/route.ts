@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
 
-export async function POST() {
-  const response = NextResponse.json({
-    ok: true,
-  });
+import {
+  revokeCurrentSession,
+} from "@/lib/auth/session";
 
-  response.cookies.delete("session");
+import {
+  clearSessionCookie,
+} from "@/lib/auth/cookie";
+
+export async function POST() {
+  await revokeCurrentSession();
+
+  const response =
+    NextResponse.json({
+      ok: true,
+    });
+
+  clearSessionCookie(response);
 
   return response;
 }
