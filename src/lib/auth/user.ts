@@ -1,15 +1,15 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { users } from "@/db/schema/users";
 
-export async function findUserByEmail(
-  email: string,
-) {
+export async function findUserByEmail(email: string) {
   const result = await db
     .select()
     .from(users)
-    .where(eq(users.email, email))
+    .where(
+      and(eq(users.email, email), isNull(users.deletedAt)),
+    )
     .limit(1);
 
   return result[0] ?? null;
@@ -34,5 +34,11 @@ export async function createUser(input: {
       isAdmin: users.isAdmin,
     });
 
-  return result[0];
+  const user = result[0];
+
+  if (!user) {
+    throw new Error("User creation returned no row");
+  }
+
+  return user;
 }
