@@ -1,0 +1,19 @@
+[portal]
+base_url = "http://localhost:3000"
+
+[tiers]
+claimed = []
+pitch = "Offline-first self-hostable hackathon platform."
+
+[auth]
+organizer = ""
+judge_a = ""
+judge_b = ""
+participant = ""
+
+[routes]
+gallery = "/api/gallery"
+submit = "/api/projects/{id}/submit"
+judge_scores = "/api/judging/assignments"
+peer_scores = "/api/judging/scores"
+csv_export = "/api/events/{id}/export"
