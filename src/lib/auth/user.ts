@@ -1,4 +1,4 @@
-import { eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { users } from "@/db/schema/users";
@@ -9,9 +9,7 @@ export async function findUserByEmail(
   const result = await db
     .select()
     .from(users)
-    .where(
-      eq(users.email, email),
-    )
+    .where(eq(users.email, email))
     .limit(1);
 
   return result[0] ?? null;
