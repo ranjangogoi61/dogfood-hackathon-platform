@@ -391,7 +391,7 @@ async function main() {
 
     await query("COMMIT");
 
-    console.log("Seed completed successfully.");
+        console.log("Seed completed successfully.");
     console.log("");
     console.log("Demo accounts:");
     console.log("  organizer@dogfood.local / DogfoodDemo123!");
@@ -403,9 +403,9 @@ async function main() {
     console.log("Closed event: dogfood-closed-demo-2026");
     console.log("Project ID:", PROJECT_ID);
   } catch (error) {
-    await client.query("ROLLBACK");
+    await query("ROLLBACK");
     throw error;
-    } finally {
+  } finally {
     await client.end();
   }
 }
