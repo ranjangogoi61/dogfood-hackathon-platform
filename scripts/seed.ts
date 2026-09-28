@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { randomUUID } from "node:crypto";
+import { hash } from "bcryptjs";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -12,30 +12,29 @@ const pool = new Pool({
 });
 
 const DEMO_PASSWORD = "DogfoodDemo123!";
+const DEMO_PASSWORD_HASH = await hash(DEMO_PASSWORD, 10);
+
+// Deterministic fixture IDs.
+const ORGANIZER_ID = "10000000-0000-4000-8000-000000000001";
+const JUDGE_A_ID = "10000000-0000-4000-8000-000000000002";
+const JUDGE_B_ID = "10000000-0000-4000-8000-000000000003";
+const PARTICIPANT_ID = "10000000-0000-4000-8000-000000000004";
+
+const PUBLISHED_EVENT_ID = "20000000-0000-4000-8000-000000000001";
+const CLOSED_EVENT_ID = "20000000-0000-4000-8000-000000000002";
+
+const TRACK_ID = "30000000-0000-4000-8000-000000000001";
+
+const TEAM_ID = "40000000-0000-4000-8000-000000000001";
+const TEAM_MEMBER_ID = "40000000-0000-4000-8000-000000000002";
+
+const PROJECT_ID = "50000000-0000-4000-8000-000000000001";
 
 async function main() {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
-
-    // ------------------------------------------------------------
-    // Deterministic fixture IDs
-    // ------------------------------------------------------------
-
-    const organizerId = "10000000-0000-4000-8000-000000000001";
-    const judgeAId = "10000000-0000-4000-8000-000000000002";
-    const judgeBId = "10000000-0000-4000-8000-000000000003";
-    const participantId = "10000000-0000-4000-8000-000000000004";
-
-    const publishedEventId = "20000000-0000-4000-8000-000000000001";
-    const closedEventId = "20000000-0000-4000-8000-000000000002";
-
-    const publishedTrackId = "30000000-0000-4000-8000-000000000001";
-
-    const teamId = "40000000-0000-4000-8000-000000000001";
-
-    const projectId = "50000000-0000-4000-8000-000000000001";
 
     // ------------------------------------------------------------
     // Users
@@ -51,10 +50,10 @@ async function main() {
         is_admin
       )
       VALUES
-        ($1, 'organizer@dogfood.local', crypt($5, gen_salt('bf', 10)), 'Demo Organizer', false),
-        ($2, 'judge-a@dogfood.local', crypt($5, gen_salt('bf', 10)), 'Demo Judge A', false),
-        ($3, 'judge-b@dogfood.local', crypt($5, gen_salt('bf', 10)), 'Demo Judge B', false),
-        ($4, 'participant@dogfood.local', crypt($5, gen_salt('bf', 10)), 'Demo Participant', false)
+        ($1, 'organizer@dogfood.local', $5, 'Demo Organizer', false),
+        ($2, 'judge-a@dogfood.local', $5, 'Demo Judge A', false),
+        ($3, 'judge-b@dogfood.local', $5, 'Demo Judge B', false),
+        ($4, 'participant@dogfood.local', $5, 'Demo Participant', false)
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         password_hash = EXCLUDED.password_hash,
@@ -64,11 +63,11 @@ async function main() {
         updated_at = NOW()
       `,
       [
-        organizerId,
-        judgeAId,
-        judgeBId,
-        participantId,
-        DEMO_PASSWORD,
+        ORGANIZER_ID,
+        JUDGE_A_ID,
+        JUDGE_B_ID,
+        PARTICIPANT_ID,
+        DEMO_PASSWORD_HASH,
       ],
     );
 
@@ -82,86 +81,125 @@ async function main() {
         id,
         slug,
         name,
+        description,
+        status,
         timezone,
-        state,
         starts_at,
         ends_at,
         submission_opens_at,
         submission_closes_at,
         judging_opens_at,
         judging_closes_at,
-        settings
+        created_by,
+        min_team_size,
+        max_team_size,
+        normalization_method,
+        normalization_min_samples,
+        normalization_epsilon,
+        fallback_method,
+        results_visibility,
+        publication_status,
+        blind_to_organizer
       )
       VALUES
         (
           $1,
           'dogfood-demo-2026',
           'Dogfood Demo Hackathon 2026',
-          'Asia/Kolkata',
+          'Seeded published fixture event for local acceptance testing.',
           'published',
+          'Asia/Kolkata',
           NOW() - INTERVAL '1 day',
           NOW() + INTERVAL '7 days',
           NOW() - INTERVAL '1 day',
           NOW() + INTERVAL '2 days',
           NOW() + INTERVAL '2 days',
           NOW() + INTERVAL '5 days',
-          '{}'::jsonb
+          $3,
+          1,
+          4,
+          'zscore',
+          3,
+          0.000001,
+          'raw_scaled',
+          'hidden',
+          'published',
+          false
         ),
         (
           $2,
           'dogfood-closed-demo-2026',
           'Dogfood Closed Demo Event 2026',
-          'Asia/Kolkata',
+          'Seeded closed fixture event for deadline testing.',
           'closed',
+          'Asia/Kolkata',
           NOW() - INTERVAL '8 days',
           NOW() - INTERVAL '1 day',
           NOW() - INTERVAL '8 days',
           NOW() - INTERVAL '2 days',
           NOW() - INTERVAL '2 days',
           NOW() - INTERVAL '1 day',
-          '{}'::jsonb
+          $3,
+          1,
+          4,
+          'zscore',
+          3,
+          0.000001,
+          'raw_scaled',
+          'hidden',
+          'unpublished',
+          false
         )
       ON CONFLICT (id) DO UPDATE SET
         slug = EXCLUDED.slug,
         name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        status = EXCLUDED.status,
         timezone = EXCLUDED.timezone,
-        state = EXCLUDED.state,
         starts_at = EXCLUDED.starts_at,
         ends_at = EXCLUDED.ends_at,
         submission_opens_at = EXCLUDED.submission_opens_at,
         submission_closes_at = EXCLUDED.submission_closes_at,
         judging_opens_at = EXCLUDED.judging_opens_at,
         judging_closes_at = EXCLUDED.judging_closes_at,
-        settings = EXCLUDED.settings,
+        created_by = EXCLUDED.created_by,
+        min_team_size = EXCLUDED.min_team_size,
+        max_team_size = EXCLUDED.max_team_size,
+        normalization_method = EXCLUDED.normalization_method,
+        normalization_min_samples = EXCLUDED.normalization_min_samples,
+        normalization_epsilon = EXCLUDED.normalization_epsilon,
+        fallback_method = EXCLUDED.fallback_method,
+        results_visibility = EXCLUDED.results_visibility,
+        publication_status = EXCLUDED.publication_status,
+        blind_to_organizer = EXCLUDED.blind_to_organizer,
         updated_at = NOW()
       `,
-      [publishedEventId, closedEventId],
+      [PUBLISHED_EVENT_ID, CLOSED_EVENT_ID, ORGANIZER_ID],
     );
 
     // ------------------------------------------------------------
     // Event roles
     // ------------------------------------------------------------
 
-    const roleRows = [
-      [randomUUID(), publishedEventId, organizerId, "organizer"],
-      [randomUUID(), publishedEventId, judgeAId, "judge"],
-      [randomUUID(), publishedEventId, judgeBId, "judge"],
-      [randomUUID(), publishedEventId, participantId, "participant"],
-    ];
+    const roles = [
+      [PUBLISHED_EVENT_ID, ORGANIZER_ID, "organizer"],
+      [PUBLISHED_EVENT_ID, JUDGE_A_ID, "judge"],
+      [PUBLISHED_EVENT_ID, JUDGE_B_ID, "judge"],
+      [PUBLISHED_EVENT_ID, PARTICIPANT_ID, "participant"],
+    ] as const;
 
-    for (const [id, eventId, userId, role] of roleRows) {
+    for (const [eventId, userId, role] of roles) {
       await client.query(
         `
         INSERT INTO event_roles (
-          id,
           event_id,
           user_id,
           role
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3)
         ON CONFLICT (event_id, user_id, role) DO NOTHING
         `,
-        [id, eventId, userId, role],
+        [eventId, userId, role],
       );
     }
 
@@ -192,7 +230,7 @@ async function main() {
         position = EXCLUDED.position,
         updated_at = NOW()
       `,
-      [publishedTrackId, publishedEventId],
+      [TRACK_ID, PUBLISHED_EVENT_ID],
     );
 
     // ------------------------------------------------------------
@@ -223,9 +261,10 @@ async function main() {
         invite_code = EXCLUDED.invite_code,
         created_by = EXCLUDED.created_by,
         status = EXCLUDED.status,
-        deleted_at = NULL
+        deleted_at = NULL,
+        updated_at = NOW()
       `,
-      [teamId, publishedEventId, participantId],
+      [TEAM_ID, PUBLISHED_EVENT_ID, PARTICIPANT_ID],
     );
 
     // ------------------------------------------------------------
@@ -248,15 +287,17 @@ async function main() {
         $4,
         'leader'
       )
-      ON CONFLICT (user_id, event_id) DO UPDATE SET
+      ON CONFLICT (id) DO UPDATE SET
         team_id = EXCLUDED.team_id,
+        event_id = EXCLUDED.event_id,
+        user_id = EXCLUDED.user_id,
         role = EXCLUDED.role
       `,
       [
-        "60000000-0000-4000-8000-000000000001",
-        teamId,
-        publishedEventId,
-        participantId,
+        TEAM_MEMBER_ID,
+        TEAM_ID,
+        PUBLISHED_EVENT_ID,
+        PARTICIPANT_ID,
       ],
     );
 
@@ -291,7 +332,7 @@ async function main() {
         $4,
         'Offline-First AI Workspace',
         'A local-first workspace for building and judging hackathon projects.',
-        'A demonstration project seeded for the Dogfood acceptance environment.',
+        'A seeded demonstration project used for Dogfood acceptance and gallery testing.',
         'https://placehold.co/1200x630/png?text=Dogfood+Demo',
         $5::jsonb,
         NULL,
@@ -322,16 +363,21 @@ async function main() {
         updated_at = NOW()
       `,
       [
-        projectId,
-        publishedEventId,
-        teamId,
-        publishedTrackId,
+        PROJECT_ID,
+        PUBLISHED_EVENT_ID,
+        TEAM_ID,
+        TRACK_ID,
         JSON.stringify([
           "https://placehold.co/1200x630/png?text=Dogfood+Demo+1",
           "https://placehold.co/1200x630/png?text=Dogfood+Demo+2",
         ]),
-        JSON.stringify(["AI", "TypeScript", "Next.js", "PostgreSQL"]),
-        participantId,
+        JSON.stringify([
+          "AI",
+          "TypeScript",
+          "Next.js",
+          "PostgreSQL",
+        ]),
+        PARTICIPANT_ID,
       ],
     );
 
@@ -341,13 +387,13 @@ async function main() {
     console.log("");
     console.log("Demo accounts:");
     console.log("  organizer@dogfood.local / DogfoodDemo123!");
-    console.log("  judge-a@dogfood.local   / DogfoodDemo123!");
-    console.log("  judge-b@dogfood.local   / DogfoodDemo123!");
+    console.log("  judge-a@dogfood.local / DogfoodDemo123!");
+    console.log("  judge-b@dogfood.local / DogfoodDemo123!");
     console.log("  participant@dogfood.local / DogfoodDemo123!");
     console.log("");
     console.log("Published event: dogfood-demo-2026");
-    console.log("Closed event:    dogfood-closed-demo-2026");
-    console.log("Project ID:      " + projectId);
+    console.log("Closed event: dogfood-closed-demo-2026");
+    console.log("Project ID:", PROJECT_ID);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
