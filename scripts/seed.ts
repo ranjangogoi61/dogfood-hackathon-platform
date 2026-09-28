@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Client } from "pg";
 import { hash } from "bcryptjs";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -7,9 +7,17 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is required");
 }
 
-const pool = new Pool({
-  connectionString: databaseUrl,
-});
+async function main() {
+  const client = new Client({
+    connectionString: databaseUrl,
+  });
+
+  await client.connect();
+
+  const query = (text: string, values?: any[]) =>
+    client.query({ text, values });
+
+  try {
 
 const DEMO_PASSWORD = "DogfoodDemo123!";
 const DEMO_PASSWORD_HASH = await hash(DEMO_PASSWORD, 10);
@@ -34,13 +42,13 @@ async function main() {
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
+    await query("BEGIN");
 
     // ------------------------------------------------------------
     // Users
     // ------------------------------------------------------------
 
-    await client.query(
+    await query(
       `
       INSERT INTO users (
         id,
@@ -75,7 +83,7 @@ async function main() {
     // Events
     // ------------------------------------------------------------
 
-    await client.query(
+    await query(
       `
       INSERT INTO events (
         id,
@@ -207,7 +215,7 @@ async function main() {
     // Track
     // ------------------------------------------------------------
 
-    await client.query(
+    await query(
       `
       INSERT INTO tracks (
         id,
@@ -237,7 +245,7 @@ async function main() {
     // Team
     // ------------------------------------------------------------
 
-    await client.query(
+    await query(
       `
       INSERT INTO teams (
         id,
@@ -271,7 +279,7 @@ async function main() {
     // Team member
     // ------------------------------------------------------------
 
-    await client.query(
+    await query(
       `
       INSERT INTO team_members (
         id,
@@ -305,7 +313,7 @@ async function main() {
     // Demo project
     // ------------------------------------------------------------
 
-    await client.query(
+    await query(
       `
       INSERT INTO projects (
         id,
@@ -381,7 +389,7 @@ async function main() {
       ],
     );
 
-    await client.query("COMMIT");
+    await query("COMMIT");
 
     console.log("Seed completed successfully.");
     console.log("");
@@ -397,9 +405,8 @@ async function main() {
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
-  } finally {
-    client.release();
-    await pool.end();
+    } finally {
+    await client.end();
   }
 }
 
