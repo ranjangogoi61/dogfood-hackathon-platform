@@ -5,8 +5,14 @@ WORKDIR /app
 
 # ---------- Dependencies ----------
 FROM base AS deps
-COPY package.json ./
-RUN pnpm install --no-frozen-lockfile
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# ---------- DB init (runs migrations) ----------
+FROM deps AS db-init
+COPY drizzle.config.ts ./
+COPY src/db ./src/db
+CMD ["pnpm", "db:migrate"]
 
 # ---------- Builder ----------
 FROM base AS builder
