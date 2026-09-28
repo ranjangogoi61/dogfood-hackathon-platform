@@ -1,7 +1,5 @@
 import {
-  boolean,
-  check,
-  integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -10,138 +8,62 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { users } from "./users";
-
-export const eventStatusEnum = pgEnum("event_status", [
+export const eventStateEnum = pgEnum("event_state", [
   "draft",
   "published",
   "closed",
+  "archived",
 ]);
 
-export const resultsVisibilityEnum = pgEnum("results_visibility", [
-  "hidden",
-  "participants",
-  "public",
-]);
+export const events = pgTable("events", {
+  id: uuid("id").defaultRandom().primaryKey(),
 
-export const publicationStatusEnum = pgEnum("publication_status", [
-  "unpublished",
-  "published",
-]);
+  slug: varchar("slug", { length: 120 }).notNull().unique(),
 
-export const events = pgTable(
-  "events",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
 
-    slug: varchar("slug", { length: 120 }).notNull().unique(),
+  timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
 
-    name: varchar("name", { length: 200 }).notNull(),
+  state: eventStateEnum("state").notNull().default("draft"),
 
-    description: text("description"),
+  startsAt: timestamp("starts_at", {
+    withTimezone: true,
+  }),
 
-    status: eventStatusEnum("status").notNull().default("draft"),
+  endsAt: timestamp("ends_at", {
+    withTimezone: true,
+  }),
 
-    timezone: varchar("timezone", { length: 64 })
-      .notNull()
-      .default("UTC"),
+  submissionOpensAt: timestamp("submission_opens_at", {
+    withTimezone: true,
+  }),
 
-    startsAt: timestamp("starts_at", {
-      withTimezone: true,
-    }),
+  submissionClosesAt: timestamp("submission_closes_at", {
+    withTimezone: true,
+  }),
 
-    endsAt: timestamp("ends_at", {
-      withTimezone: true,
-    }),
+  judgingOpensAt: timestamp("judging_opens_at", {
+    withTimezone: true,
+  }),
 
-    submissionOpensAt: timestamp("submission_opens_at", {
-      withTimezone: true,
-    }),
+  judgingClosesAt: timestamp("judging_closes_at", {
+    withTimezone: true,
+  }),
 
-    submissionClosesAt: timestamp("submission_closes_at", {
-      withTimezone: true,
-    }),
+  settings: jsonb("settings").notNull().default({}),
 
-    judgingOpensAt: timestamp("judging_opens_at", {
-      withTimezone: true,
-    }),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
 
-    judgingClosesAt: timestamp("judging_closes_at", {
-      withTimezone: true,
-    }),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+});
 
-    createdBy: uuid("created_by")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "restrict",
-      }),
-
-    minTeamSize: integer("min_team_size").notNull().default(1),
-
-    maxTeamSize: integer("max_team_size"),
-
-    normalizationMethod: varchar("normalization_method", {
-      length: 50,
-    })
-      .notNull()
-      .default("zscore"),
-
-    normalizationMinSamples: integer("normalization_min_samples")
-      .notNull()
-      .default(3),
-
-    normalizationEpsilon: varchar("normalization_epsilon", {
-      length: 32,
-    })
-      .notNull()
-      .default("0.000001"),
-
-    fallbackMethod: varchar("fallback_method", {
-      length: 50,
-    })
-      .notNull()
-      .default("raw_scaled"),
-
-    resultsVisibility: resultsVisibilityEnum("results_visibility")
-      .notNull()
-      .default("hidden"),
-
-    publicationStatus: publicationStatusEnum("publication_status")
-      .notNull()
-      .default("unpublished"),
-
-    blindToOrganizer: boolean("blind_to_organizer")
-      .notNull()
-      .default(false),
-
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-    })
-      .notNull()
-      .defaultNow(),
-
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-    })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    check(
-      "events_min_team_size_check",
-      table.minTeamSize >= 1,
-    ),
-    check(
-      "events_max_team_size_check",
-      table.maxTeamSize.isNull().or(table.maxTeamSize >= table.minTeamSize),
-    ),
-    check(
-      "events_normalization_min_samples_check",
-      table.normalizationMinSamples >= 1,
-    ),
-    check(
-      "events_normalization_epsilon_check",
-      table.normalizationEpsilon <> "0",
-    ),
-  ],
-);
+export type Event = typeof events.$inferSelect;
+export type NewEvent = typeof events.$inferInsert;
