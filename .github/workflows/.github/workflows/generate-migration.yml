@@ -1,0 +1,77 @@
+name: Generate Drizzle Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Migration name (e.g. projects)"
+        required: true
+        default: "projects"
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck schema before generation
+        run: pnpm typecheck
+
+      - name: Generate migration
+        env:
+          DATABASE_URL: postgres://dummy:dummy@localhost:5432/dummy
+        run: pnpm exec drizzle-kit generate --name=${{ inputs.name }}
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No new migration files generated."
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            git status --short
+          fi
+
+      - name: Configure git
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git add src/db/migrations
+          git commit -m "chore: generate drizzle migration for ${{ inputs.name }}"
+          git push origin main
+
+      - name: Summary
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          echo "Migration generated and pushed."
+          ls -la src/db/migrations/
+          ls -la src/db/migrations/meta/
