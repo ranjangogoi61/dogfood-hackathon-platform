@@ -19,14 +19,12 @@ services:
   db-init:
     build:
       context: .
-      target: deps
+      target: db-init
     depends_on:
       db:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://dogfood:dogfood_dev_password@db:5432/dogfood
-    command: >
-      sh -c "echo 'Foundation phase - migrations and seed arrive in Phase 3'"
     restart: "no"
 
   app:
@@ -40,7 +38,6 @@ services:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: postgres://dogfood:dogfood_dev_password@db:5432/dogfood
-      SESSION_SECRET: dev_only_change_me_32_chars_minimum_x
       APP_URL: http://localhost:3000
       NODE_ENV: production
     ports:
