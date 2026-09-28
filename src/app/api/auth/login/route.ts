@@ -1,39 +1,50 @@
 import { NextResponse } from "next/server";
 
-import { verifyPassword } from "@/lib/auth/password";
-import { loginSchema } from "@/lib/auth/schema";
-import { findUserByEmail } from "@/lib/auth/user";
+import { hashPassword } from "@/lib/auth/password";
+import { registerSchema } from "@/lib/auth/schema";
 import { createSession } from "@/lib/auth/session";
+import { findUserByEmail, createUser } from "@/lib/auth/user";
 import { setSessionCookie } from "@/lib/auth/cookie";
-
-const DUMMY_HASH =
-  "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
 export async function POST(request: Request) {
   try {
     const body: unknown = await request.json();
-    const parsed = loginSchema.safeParse(body);
+    const parsed = registerSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 },
+        { error: "Invalid registration data" },
+        { status: 400 },
       );
     }
 
-    const user = await findUserByEmail(parsed.data.email);
-    const passwordHash = user?.passwordHash ?? DUMMY_HASH;
+    const email = parsed.data.email;
+    const existing = await findUserByEmail(email);
 
-    const valid = await verifyPassword(
-      parsed.data.password,
-      passwordHash,
-    );
-
-    if (!user || !valid) {
+    if (existing) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 },
+        { error: "Unable to create account" },
+        { status: 409 },
       );
+    }
+
+    const passwordHash = await hashPassword(parsed.data.password);
+
+    let user;
+    try {
+      user = await createUser({
+        email,
+        passwordHash,
+        displayName: parsed.data.displayName,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return NextResponse.json(
+          { error: "Unable to create account" },
+          { status: 409 },
+        );
+      }
+      throw error;
     }
 
     const session = await createSession(user.id, {
@@ -41,23 +52,27 @@ export async function POST(request: Request) {
       userAgent: request.headers.get("user-agent") ?? undefined,
     });
 
-    const response = NextResponse.json({
-      ok: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        isAdmin: user.isAdmin,
-      },
-    });
+    const response = NextResponse.json(
+      { ok: true, user },
+      { status: 201 },
+    );
 
     setSessionCookie(response, session.token, session.expiresAt);
 
     return response;
   } catch {
     return NextResponse.json(
-      { error: "Invalid credentials" },
-      { status: 401 },
+      { error: "Unable to create account" },
+      { status: 500 },
     );
   }
-      }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
