@@ -15,6 +15,13 @@
       "when": 1790590512041,
       "tag": "0001_narrow_centennial",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790609527923,
+      "tag": "0002_projects",
+      "breakpoints": true
     }
   ]
 }
