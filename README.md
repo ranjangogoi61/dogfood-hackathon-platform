@@ -22,5 +22,3 @@ Open-source, self-hostable hackathon submission and judging platform.
 Foundation setup only.
 
 No business logic is claimed yet.
-package-lock.json
-yarn.lock
