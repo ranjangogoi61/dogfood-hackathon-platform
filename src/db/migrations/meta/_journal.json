@@ -8,6 +8,13 @@
       "when": 1790490119924,
       "tag": "0000_shallow_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790590512041,
+      "tag": "0001_narrow_centennial",
+      "breakpoints": true
     }
   ]
 }
