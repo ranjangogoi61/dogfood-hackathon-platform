@@ -50,6 +50,9 @@ jobs:
             -d '{"email":"ci@example.com","password":"a-very-strong-password","displayName":"CI"}'
           curl -sf -b /tmp/cj http://localhost:3000/api/auth/me
 
+      - name: Acceptance-style checks (seeded portal)
+        run: bash scripts/acceptance.sh http://localhost:3000
+
       - name: Ready returns 503 when DB is down
         run: |
           docker compose stop db
