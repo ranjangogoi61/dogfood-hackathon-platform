@@ -29,6 +29,13 @@
       "when": 1792934901199,
       "tag": "0003_judging",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792935621709,
+      "tag": "0004_login_throttle",
+      "breakpoints": true
     }
   ]
 }
