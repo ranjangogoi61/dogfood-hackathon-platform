@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { registerSchema } from "@/lib/auth/schema";
 import { createSession } from "@/lib/auth/session";
 import { findUserByEmail, createUser } from "@/lib/auth/user";
+import { getClientIp } from "@/lib/auth/client-ip";
 import { setSessionCookie } from "@/lib/auth/cookie";
 
 export async function POST(request: Request) {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     const session = await createSession(user.id, {
-      ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+      ip: getClientIp(request) ?? undefined,
       userAgent: request.headers.get("user-agent") ?? undefined,
     });
 
