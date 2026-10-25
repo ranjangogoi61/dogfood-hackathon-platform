@@ -53,6 +53,9 @@ jobs:
       - name: Acceptance-style checks (seeded portal)
         run: bash scripts/acceptance.sh http://localhost:3000
 
+      - name: T1 end-to-end flow
+        run: bash scripts/flow-test.sh http://localhost:3000
+
       - name: Ready returns 503 when DB is down
         run: |
           docker compose stop db
