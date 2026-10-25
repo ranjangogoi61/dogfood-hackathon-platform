@@ -29,11 +29,17 @@ Fixtures: published event `dogfood-demo-2026`, closed event `dogfood-closed-demo
 | Area | Endpoint(s) |
 | --- | --- |
 | Identity | `POST /api/auth/register`, `/login`, `/logout`, `GET /api/auth/me` (DB-backed opaque sessions, SHA-256 hashed, sliding + absolute TTL) |
+| Events | `GET/POST /api/events`, `GET/PATCH /api/events/{id}` (draft → published → closed), `GET/POST /api/events/{id}/tracks` |
+| Teams | `POST /api/teams`, `POST /api/teams/join` (invite code, server-enforced size cap) |
+| Projects | `POST /api/projects`, `GET/PATCH /api/projects/{id}` (drafts private; edits stop at the deadline) |
+| Judge management | `POST/GET /api/events/{id}/judges`, `PUT/GET /api/events/{id}/rubric` (locked after first score), `POST /api/events/{id}/assignments` (manual or auto), `GET /api/events/{id}/progress` |
 | Health | `GET /api/health`, `GET /api/ready` (503 when DB is down) |
 | Public gallery | `GET /api/gallery` (`event_id`, `track_id`, `q` filters; no auth) |
 | Submission | `POST /api/projects/{id}/submit` (server-side deadline, team-member/organizer/admin only) |
 | Judging | `GET /api/judging/assignments` (own only), `GET/POST /api/judging/scores` (own only; range + window validated) |
 | Results | `GET /api/events/{id}/export` (organizer/admin CSV; per-judge z-score normalization with documented fallback) |
+
+Docs: [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md) · [`docs/EXTENSION-POINTS.md`](docs/EXTENSION-POINTS.md)
 
 ### Normalization
 
@@ -45,11 +51,11 @@ Roles are event-scoped (`event_roles`); `users.is_admin` is global. All checks r
 
 ## Not yet implemented
 
-- Event / track / prize management endpoints (events are currently created by seed)
-- Team create / invite / join endpoints and project draft/edit endpoints
-- Judge invitation and assignment management UI/endpoints, rubric editing
-- Login throttling (planned for T1; requires the trusted-proxy rule below first)
-- Audit events
+- Prizes (events and tracks exist; prize records do not)
+- Web UI beyond the public gallery page (the portal is API-first)
+- Email delivery: judges are invited by email address of an already registered user, teams by invite code
+- Audit events (planned; see `docs/EXTENSION-POINTS.md`)
+- Withdrawal endpoint for projects
 - T3 / T4 are documented extension points only: voting, comments, randomized ordering, duplicate detection, audit query; REST docs, webhooks, certificates, embeds, bulk import/export
 
 ## Verification
@@ -66,7 +72,7 @@ CI runs all of the above plus `docker compose up`, health/ready checks, and a DB
 
 - **HTTPS is terminated outside the app** (Caddy / Nginx / Traefik). Cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` whenever `APP_URL` is `https://`.
 - **Secrets**: never commit `.env`; change the default DB password for any non-local deployment and rotate it by updating `DATABASE_URL` and the Postgres user together.
-- **`TRUST_PROXY`** (default `false`): do not trust `X-Forwarded-For` unless the app sits behind your own proxy. This must be wired in before login throttling ships.
+- **`TRUST_PROXY`** (default `false`): `X-Forwarded-For` is ignored unless this is `true`. Login throttling always limits per account (5 failures / 15 min → 429); the per-IP bucket (30 failures) is active only when `TRUST_PROXY=true`, so set it when running behind your own reverse proxy.
 - The demo password is public; run with `SEED_DEMO=false` in production.
 
 See `SECURITY.md` for reporting issues.
