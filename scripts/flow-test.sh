@@ -60,4 +60,10 @@ check "progress blocked for judge" 403 "$(code -b "$J/j1.jar" "$B/api/events/$EV
 check "export (organizer)" 200 "$(curl -s -o "$J/out" -w '%{http_code}' -b "$J/org.jar" "$B/api/events/$EV/export")"
 grep -q ",submitted,1,100.0000,100.0000" "$J/out" && echo "PASS export has expected scaled score (100)" || { echo "FAIL export content"; cat "$J/out"; fail=1; }
 
+# ---- login throttling ----
+for i in 1 2 3 4 5; do code -d "{\"email\":\"p3-$R@flow.test\",\"password\":\"wrong-password-$i\"}" "$B/api/auth/login" >/dev/null; done
+check "locked after 5 failures (even with right password)" 429 "$(code -d "{\"email\":\"p3-$R@flow.test\",\"password\":\"$PW\"}" "$B/api/auth/login")"
+check "unknown email gets same lockout behaviour" 429 "$(for i in 1 2 3 4 5; do code -d "{\"email\":\"ghost-$R@flow.test\",\"password\":\"x$i\"}" "$B/api/auth/login" >/dev/null; done; code -d "{\"email\":\"ghost-$R@flow.test\",\"password\":\"x\"}" "$B/api/auth/login")"
+check "other accounts unaffected" 200 "$(code -d "{\"email\":\"p2-$R@flow.test\",\"password\":\"$PW\"}" "$B/api/auth/login")"
+
 rm -rf "$J"; exit $fail
