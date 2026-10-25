@@ -6,10 +6,11 @@ claimed = []
 pitch = "Offline-first self-hostable hackathon platform."
 
 [auth]
-organizer = ""
-judge_a = ""
-judge_b = ""
-participant = ""
+# Seeded demo accounts (password for all: DogfoodDemo123!). Format: "email:password".
+organizer = "organizer@dogfood.local:DogfoodDemo123!"
+judge_a = "judge-a@dogfood.local:DogfoodDemo123!"
+judge_b = "judge-b@dogfood.local:DogfoodDemo123!"
+participant = "participant@dogfood.local:DogfoodDemo123!"
 
 [routes]
 gallery = "/api/gallery"
