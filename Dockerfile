@@ -12,7 +12,9 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS db-init
 COPY drizzle.config.ts ./
 COPY src/db ./src/db
-CMD ["pnpm", "db:migrate"]
+COPY scripts ./scripts
+# Apply migrations, then load idempotent demo fixtures (set SEED_DEMO=false to skip).
+CMD ["sh", "-c", "pnpm db:migrate && node scripts/seed.mjs"]
 
 # ---------- builder ----------
 FROM base AS builder

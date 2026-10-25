@@ -1,4 +1,5 @@
-import { Client } from "pg";
+import pg from "pg";
+const { Client } = pg;
 import { hash } from "bcryptjs";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -23,6 +24,26 @@ const TEAM_ID = "40000000-0000-4000-8000-000000000001";
 const TEAM_MEMBER_ID = "40000000-0000-4000-8000-000000000002";
 
 const PROJECT_ID = "50000000-0000-4000-8000-000000000001";
+
+// Closed-event fixtures (used to verify closed-event submission is rejected).
+const CLOSED_TEAM_ID = "40000000-0000-4000-8000-000000000011";
+const CLOSED_TEAM_MEMBER_ID = "40000000-0000-4000-8000-000000000012";
+const CLOSED_TRACK_ID = "30000000-0000-4000-8000-000000000011";
+const CLOSED_PROJECT_ID = "50000000-0000-4000-8000-000000000002";
+
+// Judging fixtures.
+const CRITERIA = [
+  ["60000000-0000-4000-8000-000000000001", "Innovation", 0.4, 10, 1],
+  ["60000000-0000-4000-8000-000000000002", "Execution", 0.4, 10, 2],
+  ["60000000-0000-4000-8000-000000000003", "Presentation", 0.2, 10, 3],
+];
+const ASSIGNMENT_A_ID = "70000000-0000-4000-8000-000000000001";
+const ASSIGNMENT_B_ID = "70000000-0000-4000-8000-000000000002";
+
+if (process.env.SEED_DEMO === "false") {
+  console.log("SEED_DEMO=false: skipping demo seed.");
+  process.exit(0);
+}
 
 async function main() {
   const client = new Client({
@@ -105,7 +126,7 @@ async function main() {
             NOW() + INTERVAL '7 days',
             NOW() - INTERVAL '1 day',
             NOW() + INTERVAL '2 days',
-            NOW() + INTERVAL '2 days',
+            NOW() - INTERVAL '1 hour',
             NOW() + INTERVAL '5 days',
             $3,
             1,
@@ -178,6 +199,8 @@ async function main() {
       [PUBLISHED_EVENT_ID, JUDGE_A_ID, "judge"],
       [PUBLISHED_EVENT_ID, JUDGE_B_ID, "judge"],
       [PUBLISHED_EVENT_ID, PARTICIPANT_ID, "participant"],
+      [CLOSED_EVENT_ID, ORGANIZER_ID, "organizer"],
+      [CLOSED_EVENT_ID, PARTICIPANT_ID, "participant"],
     ];
 
     for (const [eventId, userId, role] of roles) {
@@ -361,6 +384,88 @@ async function main() {
       ],
     });
 
+    await client.query({
+      text: `
+        INSERT INTO tracks (id, event_id, name, description, position)
+        VALUES ($1, $2, 'General', 'Closed-event demo track.', 1)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      values: [CLOSED_TRACK_ID, CLOSED_EVENT_ID],
+    });
+
+    await client.query({
+      text: `
+        INSERT INTO teams (id, event_id, name, invite_code, created_by, status)
+        VALUES ($1, $2, 'Late Builders', 'dogfood-closed-invite-2026', $3, 'active')
+        ON CONFLICT (id) DO NOTHING
+      `,
+      values: [CLOSED_TEAM_ID, CLOSED_EVENT_ID, PARTICIPANT_ID],
+    });
+
+    await client.query({
+      text: `
+        INSERT INTO team_members (id, team_id, event_id, user_id, role)
+        VALUES ($1, $2, $3, $4, 'leader')
+        ON CONFLICT (id) DO NOTHING
+      `,
+      values: [CLOSED_TEAM_MEMBER_ID, CLOSED_TEAM_ID, CLOSED_EVENT_ID, PARTICIPANT_ID],
+    });
+
+    // Draft project in the CLOSED event: submitting it must be rejected (4xx).
+    await client.query({
+      text: `
+        INSERT INTO projects (
+          id, event_id, team_id, track_id, title, tagline, description,
+          image_urls, tech_tags, status, created_by
+        )
+        VALUES (
+          $1, $2, $3, $4,
+          'Late Entry Draft',
+          'Draft in a closed event.',
+          'Used to verify that closed events reject submissions.',
+          '[]'::jsonb, '[]'::jsonb, 'draft', $5
+        )
+        ON CONFLICT (id) DO NOTHING
+      `,
+      values: [CLOSED_PROJECT_ID, CLOSED_EVENT_ID, CLOSED_TEAM_ID, CLOSED_TRACK_ID, PARTICIPANT_ID],
+    });
+
+    for (const [id, name, weight, maxScore, position] of CRITERIA) {
+      await client.query({
+        text: `
+          INSERT INTO rubric_criteria (id, event_id, name, weight, max_score, position)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (id) DO NOTHING
+        `,
+        values: [id, PUBLISHED_EVENT_ID, name, weight, maxScore, position],
+      });
+    }
+
+    const assignments = [
+      [ASSIGNMENT_A_ID, JUDGE_A_ID, [8, 7, 9]],
+      [ASSIGNMENT_B_ID, JUDGE_B_ID, [6, 8, 7]],
+    ];
+    for (const [assignmentId, judgeId, values] of assignments) {
+      await client.query({
+        text: `
+          INSERT INTO judge_assignments (id, event_id, project_id, judge_id)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (id) DO NOTHING
+        `,
+        values: [assignmentId, PUBLISHED_EVENT_ID, PROJECT_ID, judgeId],
+      });
+      for (let i = 0; i < CRITERIA.length; i += 1) {
+        await client.query({
+          text: `
+            INSERT INTO scores (assignment_id, criterion_id, value)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (assignment_id, criterion_id) DO NOTHING
+          `,
+          values: [assignmentId, CRITERIA[i][0], values[i]],
+        });
+      }
+    }
+
     await client.query({ text: "COMMIT" });
 
     console.log("Seed completed successfully.");
@@ -372,6 +477,8 @@ async function main() {
     console.log("Published event: dogfood-demo-2026");
     console.log("Closed event: dogfood-closed-demo-2026");
     console.log("Project ID:", PROJECT_ID);
+    console.log("Closed-event draft project ID:", CLOSED_PROJECT_ID);
+    console.log("Judge A assignment:", ASSIGNMENT_A_ID, "| Judge B assignment:", ASSIGNMENT_B_ID);
   } catch (error) {
     try {
       await client.query({ text: "ROLLBACK" });
