@@ -14,7 +14,7 @@ Both thresholds are per-event columns (`events.normalization_min_samples`, `even
 
 ## Known limitation
 
-When some judges fall back to raw while others use z-scores, the two scales differ (0–100 vs. standard deviations), so `mean_normalized_score` mixes them. Rank on `mean_raw_score` when judges disagree on method, or ensure each judge scores at least `min_samples` projects. The export does not hide this: with the seeded data (2 projects-per-judge < 3) every judge uses the fallback, so the two columns are identical.
+When some judges fall back to raw while others use z-scores, the two scales differ (0–100 vs. standard deviations), so `mean_normalized_score` mixes them. Rank on `mean_raw_score` when judges disagree on method, or ensure each judge scores at least `min_samples` projects. The export does not hide this: with the seeded data (each judge scores 1 project, fewer than the default minimum of 3) every judge uses the fallback, so the two columns are identical.
 
 ## Tests
 
